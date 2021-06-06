@@ -13,14 +13,14 @@
 using namespace std;
 
 extern "C" {
-    bool fit_linear_init(UDF_INIT *initid,UDF_ARGS *args, char *message);
-    void fit_linear_deinit(UDF_INIT *initid);
-    void fit_linear_clear(UDF_INIT *initid, char *is_null, char *error);
-    void fit_linear_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-    char *fit_linear(UDF_INIT *initid, UDF_ARGS*args, char *result, unsigned long *length, char *is_null, char *error);
+    bool fit_polyn_init(UDF_INIT *initid,UDF_ARGS *args, char *message);
+    void fit_polyn_deinit(UDF_INIT *initid);
+    void fit_polyn_clear(UDF_INIT *initid, char *is_null, char *error);
+    void fit_polyn_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
+    char *fit_polyn(UDF_INIT *initid, UDF_ARGS*args, char *result, unsigned long *length, char *is_null, char *error);
 }
 
-#define DECIMALS 6
+#define DECIMALS 3
 
 struct fit_prepare {
     size_t N_row;
@@ -42,7 +42,7 @@ struct fit_prepare {
 };
 
 
-bool fit_linear_init(UDF_INIT *initid,UDF_ARGS *args, char *message){
+bool fit_polyn_init(UDF_INIT *initid,UDF_ARGS *args, char *message){
     if(args->arg_count != 4){
         strcpy(message, "wrong number of arguments: FIT_LINEAR() requires two arguments");
         return 1;
@@ -63,12 +63,12 @@ bool fit_linear_init(UDF_INIT *initid,UDF_ARGS *args, char *message){
     return 0;
 }
 
-void fit_linear_deinit(UDF_INIT *initid){
+void fit_polyn_deinit(UDF_INIT *initid){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
     delete prepare;
 }
 
-void fit_linear_clear(UDF_INIT *initid, char *is_null, char *error){
+void fit_polyn_clear(UDF_INIT *initid, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
     prepare->N_row = 0;
     prepare->degree = 0;
@@ -82,13 +82,13 @@ void fit_linear_clear(UDF_INIT *initid, char *is_null, char *error){
     gsl_vector_free(prepare->c);
 }
 
-void fit_linear_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error){
+void fit_polyn_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
     prepare->data_x.push_back(*(double *)args->args[2]);
     prepare->data_y.push_back(*(double *)args->args[3]); 
 }
 
-char *fit_linear(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null, char *error){
+char *fit_polyn(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
 
     double *data_x = prepare->data_x.data();  // convert vector to array
