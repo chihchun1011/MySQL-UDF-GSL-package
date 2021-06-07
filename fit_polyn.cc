@@ -25,20 +25,14 @@ extern "C" {
 struct fit_prepare {
     size_t N_row;
     size_t degree;
-
-    vector<double> data_x;
-    vector<double> data_y;
+    size_t y0;
+    size_t X0;
+    size_t X1;
 
     gsl_multifit_linear_workspace *ws;
     gsl_matrix *cov, *X;
     gsl_vector *y, *c;
 
-    X = gsl_matrix_alloc(N_row, degree);
-    y = gsl_vector_alloc(N_row);
-    c = gsl_vector_alloc(degree);
-    cov = gsl_matrix_alloc(degree, degree);
-
-    double coeff[degree];
 };
 
 
@@ -48,14 +42,26 @@ bool fit_polyn_init(UDF_INIT *initid,UDF_ARGS *args, char *message){
         return 1;
     }
 
-    args->arg_type[0] = INT_RESULT;
-    args->arg_type[1] = INT_RESULT;
+    if (args->arg_type[0] != INT_RESULT || args->arg_type[1] != INT_RESULT){       
+        strcpy(message,"XXX() requires a string and an integer");
+        return 1;
+    }
+
     args->arg_type[2] = REAL_RESULT;
     args->arg_type[3] = REAL_RESULT;
 
     fit_prepare *prepare = new fit_prepare;
-    prepare->N_row = *((int *)arg->arg[0]);
-    prepare->degree = *((int *)arg->arg[1]);
+    prepare->N_row = *((int *)args->args[0]);
+    prepare->degree = *((int *)args->args[1]);
+    prepare->y0 = 0;
+    prepare->X0 = 0;
+    prepare->X1 = 0;
+
+    prepare->X = gsl_matrix_alloc(prepare->N_row, prepare->degree);
+    prepare->y = gsl_vector_alloc(prepare->N_row);
+    prepare->c = gsl_vector_alloc(prepare->degree);
+    prepare->cov = gsl_matrix_alloc(prepare->degree, prepare->degree);
+    prepare->ws = gsl_multifit_linear_alloc(prepare->N_row, prepare->degree);
 
     initid->decimals = DECIMALS;
     initid->ptr = (char *)prepare;
@@ -72,8 +78,9 @@ void fit_polyn_clear(UDF_INIT *initid, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
     prepare->N_row = 0;
     prepare->degree = 0;
-    prepare->data_x.clear();
-    prepare->data_y.clear();
+    prepare->y0 = 0;
+    prepare->X0 = 0;
+    prepare->X1 = 0;
 
     gsl_multifit_linear_free(prepare->ws);
     gsl_matrix_free(prepare->X);
@@ -84,46 +91,37 @@ void fit_polyn_clear(UDF_INIT *initid, char *is_null, char *error){
 
 void fit_polyn_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
-    prepare->data_x.push_back(*(double *)args->args[2]);
-    prepare->data_y.push_back(*(double *)args->args[3]); 
+
+    gsl_vector_set(prepare->y,prepare->y0 , *(double *)args->args[3]);
+    prepare->y0++;
+
+    if(prepare->X1==prepare->degree){
+        prepare->X0+=1;
+        prepare->X1=0;
+    }
+    gsl_matrix_set(prepare->X,prepare->X0,prepare->X1,pow(*(double *)args->args[2], prepare->X1));
+    prepare->X1++;
+
 }
 
 char *fit_polyn(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
 
-    double *data_x = prepare->data_x.data();  // convert vector to array
-    double *data_y = prepare->data_y.data();
-
     double chisq;
 
-    int i, j;
-    for(i=0; i < prepare->N_row; i++){
-        
-        for(j=0; j < prepare->degree; j++){
-            gsl_matrix_set(X, i, j, pow(data_x[i], j));
-        }
-        
-        gsl_vector_set(y, i, data_y[i]);
-    }
-
-    prepare->ws = gsl_multifit_linear_alloc(prepare->N_row, prepare->degree);
     gsl_multifit_linear(prepare->X, prepare->y, prepare->c, prepare->cov, &chisq, prepare->ws);
 
-    /* store result ... */
-    for(i=0; i < prepare->degree; i++)
-    {
-        prepare->coeff[i] = gsl_vector_get(prepare->c, i);
-    }
+    // // return string should less than 255 bytes
+    string ret_str = "sdasd";
 
-    // return string should less than 255 bytes
-    string ret_str;
+    // for(int i=0; i < prepare->degree; i++)
+    // {
+    //     ret_str += tostring(gsl_vector_get(prepare->c, i));
+    //     ret_str+=" ";
+    // }
 
-    for (i=0; i < DEGREE; i++){
-        ret_str+=to_string(coeff[i])
-        ret_str+=" "
-    }
     strcpy(result, ret_str.c_str());
     *length = ret_str.size();
-    
+
     return result;
 }
