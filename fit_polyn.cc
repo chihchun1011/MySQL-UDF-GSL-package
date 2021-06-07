@@ -54,16 +54,16 @@ bool fit_polyn_init(UDF_INIT *initid,UDF_ARGS *args, char *message){
     prepare->N_row = *((int *)args->args[0]);
     prepare->degree = *((int *)args->args[1]);
     prepare->y0 = 0;
-    prepare->X0 = 0;
-    prepare->X1 = 0;
+    // prepare->X0 = 0;
+    // prepare->X1 = 0;
 
-    prepare->X = gsl_matrix_alloc(prepare->N_row, prepare->degree);
+    prepare->X = gsl_matrix_alloc(prepare->N_row, prepare->degree+1);
     prepare->y = gsl_vector_alloc(prepare->N_row);
-    prepare->c = gsl_vector_alloc(prepare->degree);
-    prepare->cov = gsl_matrix_alloc(prepare->degree, prepare->degree);
-    prepare->ws = gsl_multifit_linear_alloc(prepare->N_row, prepare->degree);
+    prepare->c = gsl_vector_alloc(prepare->degree+1);
+    prepare->cov = gsl_matrix_alloc(prepare->degree+1, prepare->degree+1);
+    prepare->ws = gsl_multifit_linear_alloc(prepare->N_row, prepare->degree+1);
 
-    initid->decimals = DECIMALS;
+    initid->decimals = 3;
     initid->ptr = (char *)prepare;
 
     return 0;
@@ -81,25 +81,30 @@ void fit_polyn_deinit(UDF_INIT *initid){
 
 void fit_polyn_clear(UDF_INIT *initid, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
-    prepare->N_row = 0;
-    prepare->degree = 0;
-    prepare->y0 = 0;
-    prepare->X0 = 0;
-    prepare->X1 = 0;
+    // prepare->N_row = 0;
+    // prepare->degree = 0;
+    // prepare->y0 = 0;
+    // prepare->X0 = 0;
+    // prepare->X1 = 0;
 }
 
 void fit_polyn_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
 
     gsl_vector_set(prepare->y,prepare->y0 , *(double *)args->args[3]);
+
+    for(int j=0; j<=prepare->degree; j++){
+        gsl_matrix_set(prepare->X,prepare->y0,j,pow(*(double *)args->args[2], j));
+    }
+
     prepare->y0++;
 
-    if(prepare->X1==prepare->degree){
-        prepare->X0+=1;
-        prepare->X1=0;
-    }
-    gsl_matrix_set(prepare->X,prepare->X0,prepare->X1,pow(*(double *)args->args[2], prepare->X1));
-    prepare->X1++;
+    // if(prepare->X1==prepare->degree){
+    //     prepare->X0+=1;
+    //     prepare->X1=0;
+    // }
+    // gsl_matrix_set(prepare->X,prepare->X0,prepare->X1,pow(*(double *)args->args[2], prepare->X1));
+    // prepare->X1++;
 
 }
 
@@ -108,16 +113,16 @@ char *fit_polyn(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *l
 
     double chisq;
 
-    // gsl_multifit_linear(prepare->X, prepare->y, prepare->c, prepare->cov, &chisq, prepare->ws);
+    gsl_multifit_linear(prepare->X, prepare->y, prepare->c, prepare->cov, &chisq, prepare->ws);
 
     // // return string should less than 255 bytes
-    string ret_str = "sdasd";
+    string ret_str;
 
-    // for(int i=0; i < prepare->degree; i++)
-    // {
-    //     ret_str += tostring(gsl_vector_get(prepare->c, i));
-    //     ret_str+=" ";
-    // }
+    for(int i=0; i <= prepare->degree ; i++)
+    {
+        ret_str += to_string(gsl_vector_get(prepare->c, i));
+        ret_str += "a";
+    }
 
     strcpy(result, ret_str.c_str());
     *length = ret_str.size();
