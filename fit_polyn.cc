@@ -71,6 +71,11 @@ bool fit_polyn_init(UDF_INIT *initid,UDF_ARGS *args, char *message){
 
 void fit_polyn_deinit(UDF_INIT *initid){
     fit_prepare *prepare = (fit_prepare *)initid->ptr;
+    gsl_multifit_linear_free(prepare->ws);
+    gsl_matrix_free(prepare->X);
+    gsl_matrix_free(prepare->cov);
+    gsl_vector_free(prepare->y);
+    gsl_vector_free(prepare->c);
     delete prepare;
 }
 
@@ -81,12 +86,6 @@ void fit_polyn_clear(UDF_INIT *initid, char *is_null, char *error){
     prepare->y0 = 0;
     prepare->X0 = 0;
     prepare->X1 = 0;
-
-    gsl_multifit_linear_free(prepare->ws);
-    gsl_matrix_free(prepare->X);
-    gsl_matrix_free(prepare->cov);
-    gsl_vector_free(prepare->y);
-    gsl_vector_free(prepare->c);
 }
 
 void fit_polyn_add(UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error){
@@ -109,7 +108,7 @@ char *fit_polyn(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *l
 
     double chisq;
 
-    gsl_multifit_linear(prepare->X, prepare->y, prepare->c, prepare->cov, &chisq, prepare->ws);
+    // gsl_multifit_linear(prepare->X, prepare->y, prepare->c, prepare->cov, &chisq, prepare->ws);
 
     // // return string should less than 255 bytes
     string ret_str = "sdasd";
